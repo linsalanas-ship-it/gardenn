@@ -10,15 +10,15 @@ export default function Header() {
   return (
     <header className="border-b border-border sticky top-0 bg-bg z-40">
       <div className="max-w-[1400px] mx-auto px-5 h-11 flex items-center justify-between">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
-          Verball
+        <Link href="/garden" className="text-sm font-semibold tracking-tight">
+          Gardenn
         </Link>
 
         {!isAdmin && (
           <nav className="flex items-center gap-5">
-            <span className="text-xs text-muted tracking-wide">
-              arquivo de referências verbais
-            </span>
+            <Link href="/garden" className="text-xs text-muted tracking-wide hover:text-ink transition-colors">
+              jardim
+            </Link>
           </nav>
         )}
 
