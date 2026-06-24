@@ -3,99 +3,85 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import type { Reference } from '@/lib/types'
-import { CATEGORIES } from '@/lib/constants'
 
-// ── Seeded RNG (deterministic per-plant shapes) ──────────────────────────────
+// ── Seeded RNG ────────────────────────────────────────────────────────────────
 
 function seededRng(seed: string) {
   let h = 2166136261
-  for (let i = 0; i < seed.length; i++) {
-    h = Math.imul(h ^ seed.charCodeAt(i), 16777619)
-  }
-  return () => {
-    h ^= h << 13; h ^= h >> 17; h ^= h << 5
-    return (h >>> 0) / 0x100000000
-  }
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 16777619)
+  return () => { h ^= h << 13; h ^= h >> 17; h ^= h << 5; return (h >>> 0) / 0x100000000 }
 }
 
-// ── Color palette per category ───────────────────────────────────────────────
+// ── Neon palette ──────────────────────────────────────────────────────────────
 
-const PALETTE: Record<string, { stem: string; leaf: string; flower: string; glow: string }> = {
-  'manifesto':         { stem: '#5D4037', leaf: '#2E7D32', flower: '#E91E63', glow: '#F48FB1' },
-  'identidade-verbal': { stem: '#4E342E', leaf: '#388E3C', flower: '#FF8F00', glow: '#FFD54F' },
-  'copywriting':       { stem: '#3E2723', leaf: '#1B5E20', flower: '#00BCD4', glow: '#80DEEA' },
-  'poesia':            { stem: '#6D4C41', leaf: '#43A047', flower: '#AB47BC', glow: '#CE93D8' },
-  'email':             { stem: '#5D4037', leaf: '#2E7D32', flower: '#1E88E5', glow: '#90CAF9' },
-  'naming':            { stem: '#4E342E', leaf: '#33691E', flower: '#F4511E', glow: '#FFAB91' },
-  'ooh':               { stem: '#6D4C41', leaf: '#4CAF50', flower: '#D81B60', glow: '#F48FB1' },
+const PALETTE: Record<string, [string, string, string, string]> = {
+  // [stem,       leaf,      flower,    glow]
+  'manifesto':         ['#C77DFF', '#00E676', '#FF1744', '#FF80AB'],
+  'identidade-verbal': ['#7C4DFF', '#69F0AE', '#FF9100', '#FFD740'],
+  'copywriting':       ['#00BFA5', '#B9F6CA', '#00E5FF', '#84FFFF'],
+  'poesia':            ['#AA00FF', '#76FF03', '#E040FB', '#EA80FC'],
+  'email':             ['#448AFF', '#CCFF90', '#40C4FF', '#82B1FF'],
+  'naming':            ['#FF6D00', '#B9F6CA', '#FF3D00', '#FF9E80'],
+  'ooh':               ['#F50057', '#69F0AE', '#D500F9', '#FF80AB'],
 }
+const DEFAULT_PAL = PALETTE['poesia']
 
-const DEFAULT_PALETTE = PALETTE['poesia']
-
-// ── Plant data ───────────────────────────────────────────────────────────────
+// ── Plant data ────────────────────────────────────────────────────────────────
 
 type PlantData = {
   ref: Reference
-  x: number
-  groundY: number
-  scale: number
-  height: number
-  lean: number
-  archetype: number
-  animDelay: number
-  animDuration: number
+  x: number; groundY: number; scale: number
+  height: number; lean: number; archetype: number
+  animDelay: number; animDuration: number
   leafPositions: { t: number; side: -1 | 1; w: number; h: number }[]
-  flowerR: number
-  petalCount: number
+  flowerR: number; petalCount: number
   blobs: { dx: number; dy: number; r: number }[]
+  layer: number // 0=back(blurry), 1=mid, 2=front
 }
 
-function buildPlant(ref: Reference, x: number, groundY: number, scale: number): PlantData {
+function buildPlant(ref: Reference, x: number, groundY: number, scale: number, layer: number): PlantData {
   const rng = seededRng(ref.id)
-  const archetype = Math.floor(rng() * 3) // 0=simple bloom, 1=multi-petal, 2=bush
-  const height = (65 + rng() * 110) * scale
-  const lean = (rng() - 0.5) * 55
-  const leafCount = 2 + Math.floor(rng() * 3)
+  const archetype = Math.floor(rng() * 3)
+  const height = (70 + rng() * 120) * scale
+  const lean = (rng() - 0.5) * 60
+  const leafCount = 1 + Math.floor(rng() * 3)
   const leafPositions = Array.from({ length: leafCount }, () => ({
-    t: 0.2 + rng() * 0.58,
+    t: 0.25 + rng() * 0.55,
     side: (rng() > 0.5 ? 1 : -1) as -1 | 1,
-    w: (18 + rng() * 28) * scale,
-    h: (9 + rng() * 14) * scale,
+    w: (14 + rng() * 22) * scale,
+    h: (7 + rng() * 11) * scale,
   }))
-  const flowerR = (11 + rng() * 19) * scale
-  const petalCount = 5 + Math.floor(rng() * 4)
-  const blobCount = 3 + Math.floor(rng() * 5)
+  const flowerR = (14 + rng() * 22) * scale
+  const petalCount = 5 + Math.floor(rng() * 5)
+  const blobCount = 4 + Math.floor(rng() * 5)
   const blobs = Array.from({ length: blobCount }, () => ({
-    dx: (rng() - 0.5) * flowerR * 3,
-    dy: (rng() - 0.5) * flowerR * 1.8,
-    r: flowerR * (0.35 + rng() * 0.75),
+    dx: (rng() - 0.5) * flowerR * 3.2,
+    dy: (rng() - 0.5) * flowerR * 2,
+    r: flowerR * (0.3 + rng() * 0.8),
   }))
   return {
-    ref, x, groundY, scale,
-    height, lean, archetype,
-    animDelay: rng() * 5,
-    animDuration: 2.5 + rng() * 3.5,
+    ref, x, groundY, scale, height, lean, archetype, layer,
+    animDelay: rng() * 6, animDuration: 3 + rng() * 4,
     leafPositions, flowerR, petalCount, blobs,
   }
 }
 
-// ── Single plant SVG ─────────────────────────────────────────────────────────
+// ── Single plant ──────────────────────────────────────────────────────────────
 
-function Plant({
-  plant, hovered, onClick, onHover,
-}: {
-  plant: PlantData
-  hovered: boolean
-  onClick: () => void
-  onHover: (id: string | null) => void
+function Plant({ plant, hovered, onClick, onHover }: {
+  plant: PlantData; hovered: boolean
+  onClick: () => void; onHover: (id: string | null) => void
 }) {
-  const c = PALETTE[plant.ref.category] ?? DEFAULT_PALETTE
-  const { x, groundY, height, lean, leafPositions, flowerR, petalCount, blobs, animDelay, animDuration, archetype } = plant
+  const [stem, leaf, flower, glow] = PALETTE[plant.ref.category] ?? DEFAULT_PAL
+  const { x, groundY, height, lean, leafPositions, flowerR, petalCount, blobs, animDelay, animDuration, archetype, layer } = plant
 
   const tipX = x + lean * 0.4
   const tipY = groundY - height
-  const ctrlX = x + lean * 0.85
-  const ctrlY = groundY - height * 0.52
+  const ctrlX = x + lean * 0.88
+  const ctrlY = groundY - height * 0.5
+
+  const bloomFilterId = layer === 0 ? 'bloomFar' : hovered ? 'bloomHot' : 'bloomMid'
+  const stemOpacity = layer === 0 ? 0.35 : 0.65
 
   return (
     <g
@@ -108,96 +94,93 @@ function Plant({
       onMouseLeave={() => onHover(null)}
       onClick={onClick}
     >
-      {/* Stem */}
+      {/* Stem — hair-thin */}
       <path
         d={`M ${x} ${groundY} Q ${ctrlX} ${ctrlY} ${tipX} ${tipY}`}
-        stroke={c.stem}
-        strokeWidth={hovered ? 2.5 : 1.8}
+        stroke={stem}
+        strokeWidth={layer === 0 ? 0.7 : 1.2}
         fill="none"
         strokeLinecap="round"
-        opacity={0.9}
+        opacity={stemOpacity}
       />
 
       {/* Leaves */}
       {leafPositions.map((lp, i) => {
-        const lx = x + lean * 0.85 * lp.t
+        const lx = x + lean * 0.88 * lp.t
         const ly = groundY - height * lp.t
         return (
-          <ellipse
-            key={i}
-            cx={lx + lp.side * lp.w * 0.52}
-            cy={ly - lp.h * 0.15}
-            rx={lp.w * 0.52}
-            ry={lp.h * 0.38}
-            fill={c.leaf}
-            transform={`rotate(${lp.side * 38}, ${lx}, ${ly})`}
-            opacity={hovered ? 0.95 : 0.8}
+          <ellipse key={i}
+            cx={lx + lp.side * lp.w * 0.5}
+            cy={ly - lp.h * 0.1}
+            rx={lp.w * 0.5} ry={lp.h * 0.35}
+            fill={leaf}
+            transform={`rotate(${lp.side * 40}, ${lx}, ${ly})`}
+            opacity={layer === 0 ? 0.25 : 0.55}
+            filter={layer === 0 ? 'url(#bloomFar)' : undefined}
           />
         )
       })}
 
-      {/* Glow behind flower when hovered */}
-      {hovered && (
-        <circle cx={tipX} cy={tipY} r={flowerR * 2.2} fill={c.glow} opacity={0.22} />
-      )}
+      {/* Flower glow halo */}
+      <circle cx={tipX} cy={tipY}
+        r={flowerR * (hovered ? 3.5 : 2.2)}
+        fill={glow}
+        opacity={layer === 0 ? 0.06 : hovered ? 0.22 : 0.1}
+        filter="url(#softGlow)"
+      />
 
-      {/* Archetype 0: simple circle bloom */}
+      {/* Archetype 0: circle bloom */}
       {archetype === 0 && (
-        <>
-          <circle cx={tipX} cy={tipY} r={flowerR} fill={c.flower} opacity={hovered ? 1 : 0.88} />
-          <circle cx={tipX} cy={tipY} r={flowerR * 0.36} fill={c.stem} opacity={0.75} />
-        </>
+        <g filter={`url(#${bloomFilterId})`}>
+          <circle cx={tipX} cy={tipY} r={flowerR} fill={flower}
+            opacity={layer === 0 ? 0.45 : 0.85} />
+          <circle cx={tipX} cy={tipY} r={flowerR * 0.35} fill={glow}
+            opacity={layer === 0 ? 0.5 : 0.9} />
+        </g>
       )}
 
-      {/* Archetype 1: multi-petal */}
+      {/* Archetype 1: petals */}
       {archetype === 1 && (
-        <>
+        <g filter={`url(#${bloomFilterId})`}>
           {Array.from({ length: petalCount }, (_, i) => {
             const deg = (i / petalCount) * 360
             const rad = (deg * Math.PI) / 180
-            const px = tipX + Math.cos(rad) * flowerR * 0.78
-            const py = tipY + Math.sin(rad) * flowerR * 0.78
+            const px = tipX + Math.cos(rad) * flowerR * 0.75
+            const py = tipY + Math.sin(rad) * flowerR * 0.75
             return (
-              <ellipse
-                key={i}
-                cx={px}
-                cy={py}
-                rx={flowerR * 0.52}
-                ry={flowerR * 0.26}
-                fill={c.flower}
+              <ellipse key={i} cx={px} cy={py}
+                rx={flowerR * 0.55} ry={flowerR * 0.27}
+                fill={flower}
                 transform={`rotate(${deg}, ${px}, ${py})`}
-                opacity={hovered ? 0.92 : 0.82}
+                opacity={layer === 0 ? 0.4 : 0.82}
               />
             )
           })}
-          <circle cx={tipX} cy={tipY} r={flowerR * 0.42} fill={c.stem} opacity={0.8} />
-        </>
+          <circle cx={tipX} cy={tipY} r={flowerR * 0.38} fill={glow}
+            opacity={layer === 0 ? 0.5 : 0.95} />
+        </g>
       )}
 
-      {/* Archetype 2: bush blob cluster */}
-      {archetype === 2 &&
-        blobs.map((b, i) => (
-          <circle
-            key={i}
-            cx={tipX + b.dx}
-            cy={tipY + b.dy}
-            r={b.r}
-            fill={c.flower}
-            opacity={hovered ? 0.88 : 0.72 + i * 0.02}
-          />
-        ))}
+      {/* Archetype 2: blob cluster */}
+      {archetype === 2 && (
+        <g filter={`url(#${bloomFilterId})`}>
+          {blobs.map((b, i) => (
+            <circle key={i}
+              cx={tipX + b.dx} cy={tipY + b.dy} r={b.r}
+              fill={i % 2 === 0 ? flower : glow}
+              opacity={layer === 0 ? 0.3 : 0.68 + i * 0.015}
+            />
+          ))}
+        </g>
+      )}
 
       {/* Hover label */}
       {hovered && (
-        <text
-          x={tipX}
-          y={tipY - flowerR - 10}
-          textAnchor="middle"
-          fontSize={11}
-          fontFamily="system-ui, sans-serif"
-          fontWeight="600"
-          fill={c.flower}
-          style={{ pointerEvents: 'none' }}
+        <text x={tipX} y={tipY - flowerR - 12}
+          textAnchor="middle" fontSize={11}
+          fontFamily="system-ui, sans-serif" fontWeight="500"
+          fill={glow} opacity={0.95}
+          style={{ pointerEvents: 'none', letterSpacing: '0.05em' }}
         >
           {plant.ref.brand_name}
         </text>
@@ -206,25 +189,20 @@ function Plant({
   )
 }
 
-// ── Connection lines (shared tags) ───────────────────────────────────────────
+// ── Connection vines ──────────────────────────────────────────────────────────
 
 function Connections({ plants }: { plants: PlantData[] }) {
   const pairs = useMemo(() => {
     const result: Array<{ a: PlantData; b: PlantData; key: string }> = []
     const perPlant = new Map<string, number>()
-
     for (let i = 0; i < plants.length; i++) {
       for (let j = i + 1; j < plants.length; j++) {
-        const tagsA = plants[i].ref.tags ?? []
-        const tagsB = plants[j].ref.tags ?? []
-        if (tagsA.length === 0 || tagsB.length === 0) continue
-        const shared = tagsA.some(t => tagsB.includes(t))
-        if (!shared) continue
-
+        const ta = plants[i].ref.tags ?? []
+        const tb = plants[j].ref.tags ?? []
+        if (!ta.some(t => tb.includes(t))) continue
         const ia = perPlant.get(plants[i].ref.id) ?? 0
         const ib = perPlant.get(plants[j].ref.id) ?? 0
         if (ia >= 3 || ib >= 3) continue
-
         result.push({ a: plants[i], b: plants[j], key: `${i}-${j}` })
         perPlant.set(plants[i].ref.id, ia + 1)
         perPlant.set(plants[j].ref.id, ib + 1)
@@ -236,21 +214,14 @@ function Connections({ plants }: { plants: PlantData[] }) {
   return (
     <g>
       {pairs.map(({ a, b, key }) => {
-        const ax = a.x + a.lean * 0.4
-        const ay = a.groundY - a.height
-        const bx = b.x + b.lean * 0.4
-        const by = b.groundY - b.height
-        const mx = (ax + bx) / 2
-        const my = Math.min(ay, by) - 25
+        const ax = a.x + a.lean * 0.4, ay = a.groundY - a.height
+        const bx = b.x + b.lean * 0.4, by = b.groundY - b.height
+        const mx = (ax + bx) / 2, my = Math.min(ay, by) - 30
         return (
-          <path
-            key={key}
+          <path key={key}
             d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`}
-            stroke="#5D8A3C"
-            strokeWidth={0.9}
-            fill="none"
-            opacity={0.28}
-            strokeDasharray="3 5"
+            stroke="#C77DFF" strokeWidth={0.7} fill="none"
+            opacity={0.2} strokeDasharray="2 6"
           />
         )
       })}
@@ -258,46 +229,40 @@ function Connections({ plants }: { plants: PlantData[] }) {
   )
 }
 
-// ── Garden ground grass tufts ─────────────────────────────────────────────────
+// ── Floating particles ────────────────────────────────────────────────────────
 
-function GrassTufts({ W, groundY }: { W: number; groundY: number }) {
-  const tufts = useMemo(() => {
-    const rng = seededRng('grass-tufts-static')
-    return Array.from({ length: 28 }, (_, i) => ({
-      x: (i / 27) * W * 0.98 + W * 0.01,
-      y: groundY + (rng() - 0.5) * 18,
-      h: 8 + rng() * 14,
-      spread: 6 + rng() * 10,
+function Particles({ W, H }: { W: number; H: number }) {
+  const dots = useMemo(() => {
+    const rng = seededRng('particles-v2')
+    const neonDots = ['#FF1744','#E040FB','#00E5FF','#69F0AE','#FF9100','#40C4FF','#FF80AB','#FFD740']
+    return Array.from({ length: 55 }, (_, i) => ({
+      cx: rng() * W,
+      cy: rng() * H * 0.85,
+      r: 0.8 + rng() * 2.5,
+      color: neonDots[i % neonDots.length],
+      animDur: 4 + rng() * 8,
+      animDelay: rng() * 6,
+      dy: 8 + rng() * 20,
     }))
-  }, [W, groundY])
+  }, [W, H])
 
   return (
     <g opacity={0.55}>
-      {tufts.map((t, i) => (
-        <g key={i}>
-          <path
-            d={`M ${t.x} ${t.y} Q ${t.x - t.spread * 0.4} ${t.y - t.h * 0.7} ${t.x - t.spread * 0.8} ${t.y - t.h}`}
-            stroke="#4CAF50" strokeWidth={1.2} fill="none" strokeLinecap="round"
-          />
-          <path
-            d={`M ${t.x} ${t.y} Q ${t.x} ${t.y - t.h * 0.85} ${t.x} ${t.y - t.h}`}
-            stroke="#388E3C" strokeWidth={1.4} fill="none" strokeLinecap="round"
-          />
-          <path
-            d={`M ${t.x} ${t.y} Q ${t.x + t.spread * 0.4} ${t.y - t.h * 0.7} ${t.x + t.spread * 0.8} ${t.y - t.h}`}
-            stroke="#4CAF50" strokeWidth={1.2} fill="none" strokeLinecap="round"
-          />
-        </g>
+      {dots.map((d, i) => (
+        <circle key={i} cx={d.cx} cy={d.cy} r={d.r} fill={d.color}
+          filter="url(#softGlow)"
+          style={{ animation: `float ${d.animDur}s ease-in-out ${d.animDelay}s infinite alternate` }}
+        />
       ))}
     </g>
   )
 }
 
-// ── Main GardenView ───────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 const W = 1600
-const H = 720
-const GROUND_Y = 560
+const H = 740
+const GROUND_Y = 580
 
 export default function GardenView({ references }: { references: Reference[] }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -320,273 +285,232 @@ export default function GardenView({ references }: { references: Reference[] }) 
   const plants = useMemo(() => {
     const n = filtered.length
     if (n === 0) return []
-    const margin = 90
+    const margin = 80
     const slot = (W - margin * 2) / Math.max(n, 1)
     return filtered.map((ref, i) => {
-      const rng = seededRng(ref.id + 'xy')
+      const rng = seededRng(ref.id + 'pos2')
       const baseX = margin + slot * i + slot * 0.5
-      const jitter = (rng() - 0.5) * slot * 0.55
-      const x = Math.max(55, Math.min(W - 55, baseX + jitter))
-      const gY = GROUND_Y + (rng() - 0.5) * 28
-      return buildPlant(ref, x, gY, scale)
+      const x = Math.max(55, Math.min(W - 55, baseX + (rng() - 0.5) * slot * 0.55))
+      const gY = GROUND_Y + (rng() - 0.5) * 30
+      const layer = Math.floor(rng() * 3) as 0 | 1 | 2
+      return buildPlant(ref, x, gY, scale, layer)
     })
   }, [filtered, scale])
 
-  const handlePlantClick = useCallback((slug: string) => {
+  // Render back layers first, front last
+  const byLayer = useMemo(() => ({
+    back: plants.filter(p => p.layer === 0 && p.ref.id !== hoveredId),
+    mid:  plants.filter(p => p.layer === 1 && p.ref.id !== hoveredId),
+    front: plants.filter(p => p.layer === 2 && p.ref.id !== hoveredId),
+    hov:  plants.filter(p => p.ref.id === hoveredId),
+  }), [plants, hoveredId])
+
+  const handleClick = useCallback((slug: string) => {
     window.location.href = `/ref/${slug}`
   }, [])
 
   return (
-    <div className="garden-root">
-      {/* Top bar */}
-      <div className="garden-header">
-        <Link href="/" className="garden-back">
-          ← lista
-        </Link>
-        <span className="garden-title">GARDENN</span>
-        <span className="garden-count">
+    <div className="gv-root">
+      {/* Header */}
+      <div className="gv-header">
+        <Link href="/garden" className="gv-logo">GARDENN</Link>
+        <span className="gv-count">
           {filtered.length === references.length
             ? `${references.length} ideia${references.length !== 1 ? 's' : ''}`
-            : `${filtered.length} de ${references.length}`}
+            : `${filtered.length} / ${references.length}`}
         </span>
+        <Link href="/admin" className="gv-admin">admin →</Link>
       </div>
 
-      {/* SVG canvas */}
-      <div className="garden-canvas-wrap">
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          preserveAspectRatio="xMidYMax meet"
-          className="garden-svg"
-        >
+      {/* Canvas */}
+      <div className="gv-canvas-wrap">
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMax meet" className="gv-svg">
           <defs>
-            <linearGradient id="gSky" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#E8F5E9" />
-              <stop offset="65%"  stopColor="#F1F8E9" />
-              <stop offset="100%" stopColor="#DCEDC8" />
-            </linearGradient>
-            <linearGradient id="gGround" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#A5D6A7" />
-              <stop offset="50%"  stopColor="#66BB6A" />
-              <stop offset="100%" stopColor="#388E3C" />
-            </linearGradient>
-            <radialGradient id="gSun" cx="15%" cy="12%" r="25%">
-              <stop offset="0%"   stopColor="#FFFDE7" stopOpacity="0.7" />
-              <stop offset="100%" stopColor="#E8F5E9" stopOpacity="0" />
+            {/* Bloom filters */}
+            <filter id="bloomFar" x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b" />
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="bloomMid" x="-60%" y="-60%" width="220%" height="220%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="b" />
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="bloomHot" x="-80%" y="-80%" width="260%" height="260%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b1" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="1" result="b2" />
+              <feMerge><feMergeNode in="b1"/><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="softGlow" x="-150%" y="-150%" width="400%" height="400%">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="6" />
+            </filter>
+
+            {/* Background gradients */}
+            <radialGradient id="bgGlow1" cx="30%" cy="40%" r="45%">
+              <stop offset="0%" stopColor="#6B21A8" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#0F0A1A" stopOpacity="0" />
             </radialGradient>
+            <radialGradient id="bgGlow2" cx="75%" cy="60%" r="40%">
+              <stop offset="0%" stopColor="#064E3B" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#0F0A1A" stopOpacity="0" />
+            </radialGradient>
+            <radialGradient id="bgGlow3" cx="55%" cy="20%" r="35%">
+              <stop offset="0%" stopColor="#831843" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#0F0A1A" stopOpacity="0" />
+            </radialGradient>
+            <linearGradient id="bgMain" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#0D0A18" />
+              <stop offset="60%"  stopColor="#111520" />
+              <stop offset="100%" stopColor="#0A1A12" />
+            </linearGradient>
+            <linearGradient id="groundGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#0D2B1A" />
+              <stop offset="100%" stopColor="#050E08" />
+            </linearGradient>
+
+            {/* Mist overlay */}
+            <linearGradient id="mistGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#1A0E2E" stopOpacity="0" />
+              <stop offset="70%"  stopColor="#1A0E2E" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="#0D1F14" stopOpacity="0.6" />
+            </linearGradient>
           </defs>
 
-          {/* Sky */}
-          <rect width={W} height={H} fill="url(#gSky)" />
-          <rect width={W} height={H} fill="url(#gSun)" />
+          {/* Background */}
+          <rect width={W} height={H} fill="url(#bgMain)" />
+          <rect width={W} height={H} fill="url(#bgGlow1)" />
+          <rect width={W} height={H} fill="url(#bgGlow2)" />
+          <rect width={W} height={H} fill="url(#bgGlow3)" />
 
-          {/* Ground curve */}
+          {/* Ground */}
           <path
-            d={`M 0 ${GROUND_Y - 18} Q ${W * 0.25} ${GROUND_Y - 34} ${W * 0.5} ${GROUND_Y - 22} Q ${W * 0.75} ${GROUND_Y - 10} ${W} ${GROUND_Y - 20} L ${W} ${H} L 0 ${H} Z`}
-            fill="url(#gGround)"
+            d={`M 0 ${GROUND_Y - 10} Q ${W*0.3} ${GROUND_Y - 28} ${W*0.6} ${GROUND_Y - 15} Q ${W*0.8} ${GROUND_Y - 5} ${W} ${GROUND_Y - 12} L ${W} ${H} L 0 ${H} Z`}
+            fill="url(#groundGrad)"
           />
 
-          {/* Grass */}
-          <GrassTufts W={W} groundY={GROUND_Y} />
+          {/* Particles */}
+          <Particles W={W} H={H} />
 
           {/* Connection vines */}
           <Connections plants={plants} />
 
-          {/* Plants — render hovered last so it's on top */}
-          {plants
-            .filter(p => p.ref.id !== hoveredId)
-            .map(p => (
-              <Plant
-                key={p.ref.id}
-                plant={p}
-                hovered={false}
-                onClick={() => handlePlantClick(p.ref.slug)}
-                onHover={setHoveredId}
-              />
-            ))}
-          {plants
-            .filter(p => p.ref.id === hoveredId)
-            .map(p => (
-              <Plant
-                key={p.ref.id}
-                plant={p}
-                hovered
-                onClick={() => handlePlantClick(p.ref.slug)}
-                onHover={setHoveredId}
-              />
-            ))}
+          {/* Plants — layered for depth */}
+          {byLayer.back.map(p => (
+            <Plant key={p.ref.id} plant={p} hovered={false}
+              onClick={() => handleClick(p.ref.slug)} onHover={setHoveredId} />
+          ))}
+          {byLayer.mid.map(p => (
+            <Plant key={p.ref.id} plant={p} hovered={false}
+              onClick={() => handleClick(p.ref.slug)} onHover={setHoveredId} />
+          ))}
+          {byLayer.front.map(p => (
+            <Plant key={p.ref.id} plant={p} hovered={false}
+              onClick={() => handleClick(p.ref.slug)} onHover={setHoveredId} />
+          ))}
+          {byLayer.hov.map(p => (
+            <Plant key={p.ref.id} plant={p} hovered
+              onClick={() => handleClick(p.ref.slug)} onHover={setHoveredId} />
+          ))}
+
+          {/* Mist overlay */}
+          <rect width={W} height={H} fill="url(#mistGrad)" style={{ pointerEvents: 'none' }} />
 
           {/* Empty state */}
           {plants.length === 0 && (
-            <text
-              x={W / 2}
-              y={GROUND_Y - 60}
-              textAnchor="middle"
-              fontSize={15}
-              fontFamily="system-ui, sans-serif"
-              fill="#5D4037"
-              opacity={0.5}
-            >
-              Nenhuma ideia encontrada. Plante a primeira no admin.
+            <text x={W / 2} y={GROUND_Y - 80} textAnchor="middle"
+              fontSize={14} fontFamily="system-ui, sans-serif"
+              fill="#C77DFF" opacity={0.5} letterSpacing="0.08em">
+              o jardim está vazio — adicione ideias no admin
             </text>
           )}
         </svg>
       </div>
 
-      {/* Floating search/filter bar */}
-      <div className="garden-bar-wrap">
-        <div className="garden-bar">
-          <button
-            className="garden-bar-icon"
-            onClick={() => inputRef.current?.focus()}
-            aria-label="Buscar"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5"/>
-              <path d="M10 10l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </button>
-          <input
-            ref={inputRef}
-            className="garden-bar-input"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="buscar por nome, tema, tag…"
-          />
+      {/* Floating search bar */}
+      <div className="gv-bar-wrap">
+        <div className="gv-bar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="gv-search-icon">
+            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.4"/>
+            <path d="M10 10l3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+          </svg>
+          <input ref={inputRef} className="gv-input"
+            value={query} onChange={e => setQuery(e.target.value)}
+            placeholder="buscar por nome, tema, tag…" />
           {query && (
-            <button
-              className="garden-bar-clear"
-              onClick={() => setQuery('')}
-              aria-label="Limpar"
-            >
-              ×
-            </button>
+            <button className="gv-clear" onClick={() => setQuery('')} aria-label="Limpar">×</button>
           )}
-          <Link href="/admin/nova" className="garden-bar-add" title="Adicionar ideia">
-            +
-          </Link>
+          <Link href="/admin/nova" className="gv-add" title="Plantar nova ideia">+</Link>
         </div>
       </div>
 
       <style jsx>{`
-        .garden-root {
+        .gv-root {
           min-height: 100vh;
-          background: #E8F5E9;
+          background: #0D0A18;
           display: flex;
           flex-direction: column;
           position: relative;
           overflow: hidden;
         }
-        .garden-header {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          z-index: 50;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 20px;
-          height: 44px;
-          background: rgba(232, 245, 233, 0.85);
-          backdrop-filter: blur(8px);
-          border-bottom: 1px solid rgba(76, 175, 80, 0.2);
+        .gv-header {
+          position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 0 24px; height: 44px;
+          background: rgba(13, 10, 24, 0.75);
+          backdrop-filter: blur(12px);
+          border-bottom: 1px solid rgba(199, 125, 255, 0.12);
         }
-        .garden-back {
-          font-size: 12px;
-          color: #4CAF50;
-          text-decoration: none;
-          letter-spacing: 0.04em;
-          font-weight: 500;
+        .gv-logo {
+          font-size: 11px; font-weight: 700; letter-spacing: 0.22em;
+          color: #C77DFF; text-decoration: none; text-transform: uppercase;
         }
-        .garden-back:hover { text-decoration: underline; }
-        .garden-title {
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 0.18em;
-          color: #2E7D32;
-          text-transform: uppercase;
+        .gv-count {
+          font-size: 11px; color: rgba(199,125,255,0.4); letter-spacing: 0.06em;
         }
-        .garden-count {
-          font-size: 11px;
-          color: #81C784;
-          letter-spacing: 0.04em;
+        .gv-admin {
+          font-size: 11px; color: rgba(199,125,255,0.4); text-decoration: none;
+          letter-spacing: 0.06em; transition: color 0.2s;
         }
-        .garden-canvas-wrap {
-          flex: 1;
-          display: flex;
-          align-items: flex-end;
-          padding-top: 44px;
+        .gv-admin:hover { color: #C77DFF; }
+        .gv-canvas-wrap {
+          flex: 1; display: flex; align-items: flex-end; padding-top: 44px;
         }
-        .garden-svg {
-          width: 100%;
-          height: calc(100vh - 44px);
-          display: block;
+        .gv-svg {
+          width: 100%; height: calc(100vh - 44px); display: block;
         }
-        .garden-bar-wrap {
-          position: fixed;
-          bottom: 24px;
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 50;
+        .gv-bar-wrap {
+          position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); z-index: 50;
         }
-        .garden-bar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: #fff;
-          border-radius: 40px;
-          padding: 9px 14px;
-          box-shadow: 0 4px 24px rgba(46, 125, 50, 0.18), 0 1px 4px rgba(0,0,0,0.08);
-          min-width: 300px;
+        .gv-bar {
+          display: flex; align-items: center; gap: 10px;
+          background: rgba(20, 12, 36, 0.88);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(199, 125, 255, 0.2);
+          border-radius: 40px; padding: 10px 16px;
+          box-shadow: 0 0 30px rgba(199,125,255,0.12), 0 4px 20px rgba(0,0,0,0.4);
+          min-width: 320px;
         }
-        .garden-bar-icon {
-          color: #81C784;
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 0;
-          display: flex;
-          align-items: center;
-          flex-shrink: 0;
+        .gv-search-icon { color: rgba(199,125,255,0.5); flex-shrink: 0; }
+        .gv-input {
+          flex: 1; border: none; outline: none;
+          font-size: 13px; color: rgba(255,255,255,0.8);
+          background: transparent; min-width: 0; letter-spacing: 0.02em;
         }
-        .garden-bar-input {
-          flex: 1;
-          border: none;
-          outline: none;
-          font-size: 13px;
-          color: #2E7D32;
-          background: transparent;
-          min-width: 0;
+        .gv-input::placeholder { color: rgba(199,125,255,0.3); }
+        .gv-clear {
+          background: none; border: none; cursor: pointer;
+          color: rgba(199,125,255,0.4); font-size: 17px;
+          line-height: 1; padding: 0; flex-shrink: 0;
         }
-        .garden-bar-input::placeholder { color: #A5D6A7; }
-        .garden-bar-clear {
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #A5D6A7;
-          font-size: 16px;
-          line-height: 1;
-          padding: 0;
-          flex-shrink: 0;
+        .gv-clear:hover { color: #C77DFF; }
+        .gv-add {
+          width: 28px; height: 28px; border-radius: 50%;
+          background: linear-gradient(135deg, #C77DFF, #E040FB);
+          color: #fff; display: flex; align-items: center; justify-content: center;
+          font-size: 19px; line-height: 1; text-decoration: none;
+          flex-shrink: 0; font-weight: 300; transition: opacity 0.2s;
+          box-shadow: 0 0 12px rgba(199,125,255,0.4);
         }
-        .garden-bar-clear:hover { color: #4CAF50; }
-        .garden-bar-add {
-          width: 30px;
-          height: 30px;
-          border-radius: 50%;
-          background: #4CAF50;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 20px;
-          line-height: 1;
-          text-decoration: none;
-          flex-shrink: 0;
-          font-weight: 300;
-          transition: background 0.2s;
-        }
-        .garden-bar-add:hover { background: #388E3C; }
+        .gv-add:hover { opacity: 0.85; }
       `}</style>
     </div>
   )

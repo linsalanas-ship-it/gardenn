@@ -23,6 +23,11 @@
   100% { transform: rotate(1.5deg); }
 }
 
+@keyframes float {
+  0%   { transform: translateY(0px); }
+  100% { transform: translateY(-12px); }
+}
+
 @layer utilities {
   .line-clamp-4 {
     display: -webkit-box;
