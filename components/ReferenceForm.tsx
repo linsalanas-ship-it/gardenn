@@ -355,19 +355,15 @@ export default function ReferenceForm({ initial, initialImages = [] }: Props) {
       {/* ── Main fields ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div className="sm:col-span-2">
-          <label className={labelClass}>Título / nome *</label>
-          <input type="text" value={form.brand_name} onChange={(e) => set('brand_name', e.target.value)} required placeholder="ex: How to Do Nothing, The New York Times, Björk" className={inputClass} />
+          <label className={labelClass}>Marca *</label>
+          <input type="text" value={form.brand_name} onChange={(e) => set('brand_name', e.target.value)} required placeholder="ex: Nike" className={inputClass} />
         </div>
         <div>
           <label className={labelClass}>Categoria *</label>
           <select value={form.category} onChange={(e) => set('category', e.target.value)} required className={inputClass}>
             <option value="">Selecionar</option>
-            {(['texto','link','imagem','video','audio','citacao','outro'] as const).map(k => (
-              <option key={k} value={k}>{CATEGORIES[k].label}</option>
-            ))}
-            <option disabled>──────────</option>
-            {(['manifesto','identidade-verbal','copywriting','poesia','email','naming','ooh'] as const).map(k => (
-              <option key={k} value={k}>{CATEGORIES[k].label}</option>
+            {Object.entries(CATEGORIES).map(([key, cat]) => (
+              <option key={key} value={key}>{cat.label}</option>
             ))}
           </select>
         </div>
@@ -385,7 +381,7 @@ export default function ReferenceForm({ initial, initialImages = [] }: Props) {
       {/* Content + Analyze */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <label className={labelClass} style={{ marginBottom: 0 }}>Conteúdo / descrição *</label>
+          <label className={labelClass} style={{ marginBottom: 0 }}>Texto da referência *</label>
           <button
             type="button"
             onClick={handleAnalyze}
@@ -395,7 +391,7 @@ export default function ReferenceForm({ initial, initialImages = [] }: Props) {
             {analyzing ? <><span className="inline-block w-2.5 h-2.5 border border-muted border-t-transparent rounded-full animate-spin" />Analisando...</> : '✦ Analisar com IA'}
           </button>
         </div>
-        <textarea value={form.content} onChange={(e) => set('content', e.target.value)} required rows={8} placeholder="Cole um texto, descreva um vídeo, anote uma ideia, transcreva uma citação..." className={`${inputClass} resize-y leading-relaxed`} />
+        <textarea value={form.content} onChange={(e) => set('content', e.target.value)} required rows={8} placeholder="Cole o texto aqui..." className={`${inputClass} resize-y leading-relaxed`} />
 
         {analysis && (
           <div className="mt-2 border border-border bg-surface p-4">
@@ -429,8 +425,8 @@ export default function ReferenceForm({ initial, initialImages = [] }: Props) {
       </div>
 
       <div>
-        <label className={labelClass}>Subtítulo / contexto (opcional)</label>
-        <input type="text" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="ex: ensaio publicado em 2019, capítulo 3, trecho do podcast" className={inputClass} />
+        <label className={labelClass}>Título / contexto (opcional)</label>
+        <input type="text" value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="ex: Manifesto de lançamento, 2023" className={inputClass} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -456,17 +452,17 @@ export default function ReferenceForm({ initial, initialImages = [] }: Props) {
       </div>
 
       <div>
-        <label className={labelClass}>Autor / origem</label>
-        <input type="text" value={form.agency} onChange={(e) => set('agency', e.target.value)} placeholder="ex: Jenny Odell, Netflix, Radiolab" className={inputClass} />
+        <label className={labelClass}>Agência / Autor</label>
+        <input type="text" value={form.agency} onChange={(e) => set('agency', e.target.value)} placeholder="ex: Wieden+Kennedy" className={inputClass} />
       </div>
 
       <div>
         <label className={labelClass}>Tags (separadas por vírgula)</label>
-        <input type="text" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="ex: natureza, tempo, memória, cidade" className={inputClass} />
+        <input type="text" value={form.tags} onChange={(e) => set('tags', e.target.value)} placeholder="ex: feminismo, propósito, minimalismo" className={inputClass} />
       </div>
 
       <div>
-        <label className={labelClass}>Link original</label>
+        <label className={labelClass}>URL da fonte</label>
         <input type="url" value={form.source_url} onChange={(e) => set('source_url', e.target.value)} placeholder="https://" className={inputClass} />
       </div>
 
@@ -489,7 +485,7 @@ export default function ReferenceForm({ initial, initialImages = [] }: Props) {
 
       <div className="flex items-center gap-4 pt-2">
         <button type="submit" disabled={loading} className="bg-ink text-bg text-xs uppercase tracking-widest px-6 py-2.5 hover:bg-ink/80 transition-colors disabled:opacity-50">
-          {loading ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Plantar ideia'}
+          {loading ? 'Salvando...' : isEditing ? 'Salvar alterações' : 'Publicar referência'}
         </button>
         <button type="button" onClick={() => router.push('/admin')} className="text-xs text-muted hover:text-ink uppercase tracking-widest transition-colors">
           Cancelar
