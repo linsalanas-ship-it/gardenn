@@ -25,14 +25,13 @@ export default function LoginPage() {
       return
     }
 
-    router.push('/admin')
-    router.refresh()
+    window.location.href = '/admin'
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-5">
       <div className="w-full max-w-[320px]">
-        <h1 className="text-sm font-semibold mb-8">Verball Admin</h1>
+        <h1 className="text-sm font-semibold mb-8">Gardenn</h1>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
