@@ -18,6 +18,11 @@
   }
 }
 
+@keyframes plantSway {
+  0%   { transform: rotate(-1.5deg); }
+  100% { transform: rotate(1.5deg); }
+}
+
 @layer utilities {
   .line-clamp-4 {
     display: -webkit-box;

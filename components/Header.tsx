@@ -16,6 +16,12 @@ export default function Header() {
 
         {!isAdmin && (
           <nav className="flex items-center gap-5">
+            <Link
+              href="/garden"
+              className="text-xs tracking-wide text-muted hover:text-ink transition-colors"
+            >
+              jardim
+            </Link>
             <span className="text-xs text-muted tracking-wide">
               arquivo de referências verbais
             </span>
