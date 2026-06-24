@@ -16,8 +16,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <header className="border-b border-border">
           <div className="max-w-[1400px] mx-auto px-5 h-11 flex items-center justify-between">
             <div className="flex items-center gap-6">
-              <Link href="/" className="text-sm font-semibold tracking-tight">
-                Verball
+              <Link href="/garden" className="text-sm font-semibold tracking-tight">
+                Gardenn
               </Link>
               <span className="text-faint">|</span>
               <nav className="flex items-center gap-4">
@@ -25,7 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                   href="/admin"
                   className="text-xs text-muted hover:text-ink transition-colors uppercase tracking-wider"
                 >
-                  Referências
+                  Ideias
                 </Link>
                 <Link
                   href="/admin/nova"
