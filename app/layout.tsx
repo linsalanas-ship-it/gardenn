@@ -16,12 +16,11 @@ const playfair = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'Verball — Referências verbais de branding',
-  description:
-    'As melhores referências em redação publicitária, branding verbal, manifestos, campanhas e email. Em português, inglês e espanhol.',
+  title: 'Gardenn — repositório de ideias',
+  description: 'Um jardim de referências e ideias que floresce a cada novo link, imagem, texto ou vídeo adicionado.',
   openGraph: {
-    title: 'Verball',
-    description: 'Arquivo curado de referências verbais de branding.',
+    title: 'Gardenn',
+    description: 'Um jardim de referências e ideias.',
     type: 'website',
   },
 }

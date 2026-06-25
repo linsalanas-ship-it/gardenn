@@ -1,4 +1,13 @@
 export type Category =
+  // Generic types (new)
+  | 'texto'
+  | 'link'
+  | 'imagem'
+  | 'video'
+  | 'audio'
+  | 'citacao'
+  | 'outro'
+  // Legacy verbal branding (kept for existing data)
   | 'manifesto'
   | 'identidade-verbal'
   | 'copywriting'
